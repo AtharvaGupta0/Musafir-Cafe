@@ -20,6 +20,7 @@
 
 import tokensCss from "../theme.css?inline";
 import { SUGGESTIONS } from "../lib/suggestions";
+import { decodeServerText } from "../lib/text";
 
 const shadowTokens = tokensCss.replace(/:root/g, ":host");
 
@@ -587,7 +588,7 @@ export class CafeChatbot extends HTMLElement {
       const data = (await response.json()) as ChatPayload;
       this.conversationId = data.conversation_id ?? this.conversationId;
       this.setTyping(false);
-      this.appendMessage("assistant", data.reply || "(no reply)", data.products);
+      this.appendMessage("assistant", decodeServerText(data.reply || "(no reply)"), data.products);
       this.setStatus("");
     } catch {
       this.setTyping(false);

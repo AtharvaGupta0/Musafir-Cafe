@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postChat, ChatApiError, type Product } from "../lib/api";
+import { decodeServerText } from "../lib/text";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import { WelcomePanel } from "./WelcomePanel";
@@ -79,7 +80,7 @@ export function Chat() {
           {
             id: nextMessageId(),
             role: "assistant",
-            content: data.reply,
+            content: decodeServerText(data.reply),
             products: data.products.length > 0 ? data.products : undefined,
           },
         ]);

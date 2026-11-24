@@ -434,6 +434,11 @@ try {
   await widgetPage.locator(".msg.assistant").first().waitFor({ timeout: 20_000 });
   const replyText = (await widgetPage.locator(".msg.assistant").first().textContent()) ?? "";
   check(replyText.trim().length > 0, "assistant reply renders in the panel");
+  check(
+    !/&(amp|lt|gt|quot|#039);/.test(replyText),
+    "server-escaped reply entities are decoded before display",
+    replyText.slice(0, 80)
+  );
 
   await widgetPage
     .locator("#input")
