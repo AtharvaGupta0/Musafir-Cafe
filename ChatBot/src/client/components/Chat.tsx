@@ -50,22 +50,27 @@ export function Chat() {
   const nearBottomRef = useRef(true);
   const inFlightRef = useRef(false);
 
+  const MAX_RETRIES = 5;
+
   const runRequest = useCallback(
-    async (raw: string, echo: boolean) => {
+    async (raw: string, echo: boolean, attempt = 0) => {
       const message = raw.trim();
-      if (!message || inFlightRef.current) return;
+      if (!message) return;
 
-      inFlightRef.current = true;
-      nearBottomRef.current = true;
-      setPending(true);
-      setError(null);
+      if (attempt === 0) {
+        if (inFlightRef.current) return;
+        inFlightRef.current = true;
+        nearBottomRef.current = true;
+        setPending(true);
+        setError(null);
 
-      if (echo) {
-        setMessages((prev) => [
-          ...prev,
-          { id: nextMessageId(), role: "customer", content: message },
-        ]);
-        setValue("");
+        if (echo) {
+          setMessages((prev) => [
+            ...prev,
+            { id: nextMessageId(), role: "customer", content: message },
+          ]);
+          setValue("");
+        }
       }
 
       try {
@@ -84,15 +89,24 @@ export function Chat() {
             products: data.products.length > 0 ? data.products : undefined,
           },
         ]);
+        inFlightRef.current = false;
+        setPending(false);
       } catch (cause) {
         const detail =
           cause instanceof ChatApiError
             ? cause.message
             : "Something went wrong while contacting the assistant. Please try again.";
-        setError({ message: detail, retry: message });
-      } finally {
+
+        // Automatically retry on server/internal errors up to MAX_RETRIES times
+        // with a 0s delay, without re-echoing the customer's message.
+        if (attempt < MAX_RETRIES && cause instanceof ChatApiError) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          return runRequest(message, false, attempt + 1);
+        }
+
         inFlightRef.current = false;
         setPending(false);
+        setError({ message: detail, retry: message });
       }
     },
     [conversationId]
