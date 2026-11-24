@@ -1,4 +1,4 @@
-name = "cafe-fernweh"
+name = "cafe-musafir"
 main = "src/server/index.ts"
 compatibility_date = "2024-11-01"
 
@@ -26,7 +26,7 @@ binding = "ASSETS"
 # (creates a local D1). For deployment, set a real database_id.
 [[d1_databases]]
 binding = "DB"
-database_name = "cafe-fernweh"
+database_name = "cafe-musafir"
 database_id = ""
 
 [observability]

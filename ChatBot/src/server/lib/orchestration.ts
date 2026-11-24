@@ -131,7 +131,7 @@ Available database tools (call at most one per turn; only the names below):
 `;
 
 function systemPromptFor(mode: string, state: ConversationState): string {
-  const base = `You are the assistant for Café Fernweh, a café. Be helpful, concise, and warm.
+  const base = `You are the assistant for Cafe Musafir, a café. Be helpful, concise, and warm.
 You must never invent menu facts (prices, availability, ingredients, allergens, sales).
 When a customer asks about the menu, prices, availability, dietary suitability, or recommendations,
 use the available database tools. Ground every factual claim in tool results.
@@ -150,7 +150,7 @@ Do not output HTML or markdown code fences in your final answer.`;
       return `${base}
 
 You are running WITHOUT menu grounding. Answer from your own general knowledge.
-Be honest that you do not have access to Café Fernweh's live menu and may be wrong about specifics.`;
+Be honest that you do not have access to Cafe Musafir's live menu and may be wrong about specifics.`;
     case "menu_context":
       return `${base}
 

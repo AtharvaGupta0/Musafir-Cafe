@@ -1,4 +1,4 @@
--- Café Fernweh — D1 / SQLite schema (Sprint 1)
+-- Cafe Musafir — D1 / SQLite schema (Sprint 1)
 --
 -- All sample menu data is FICTIONAL and for demonstration only.
 -- Prices are stored as integer minor currency units (paise, INR) to avoid

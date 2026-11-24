@@ -1,4 +1,4 @@
--- Café Fernweh — repeatable seed data (Sprint 1)
+-- Cafe Musafir — repeatable seed data (Sprint 1)
 --
 -- ALL SAMPLE DATA IS FICTIONAL and for demonstration only.
 -- Prices are integer minor currency units (paise, INR); e.g. 25000 = ₹250.00.

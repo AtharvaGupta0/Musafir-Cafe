@@ -1,4 +1,4 @@
--- Café Fernweh — D1 migration 0001: initial schema
+-- Cafe Musafir — D1 migration 0001: initial schema
 -- Applied with: wrangler d1 migrations apply <DB> [--local]
 
 CREATE TABLE IF NOT EXISTS categories (

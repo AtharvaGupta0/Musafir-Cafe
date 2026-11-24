@@ -5,6 +5,8 @@ import { prettyJSON } from "hono/pretty-json";
 
 import { wrapD1, wrapSqlJs, type D1Database, execStatements, readOne } from "./lib/db";
 import { SCHEMA_SQL, SEED_SQL } from "./lib/init-sql";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { runConversation, escapeHtml, PROMPT_VERSION } from "./lib/orchestration";
 import { createConversationState, type ConversationState } from "./lib/state";
 import {
@@ -97,14 +99,14 @@ const PRODUCTION_GROUNDING: GroundingMode = "retrieval_validation";
 
 /**
  * Read the experimental-evaluation token. Accept a standard bearer
- * Authorization header or the legacy X-Fernweh-Admin-Token header (with an
+ * Authorization header or the legacy X-Musafir-Admin-Token header (with an
  * optional Bearer prefix). Never log or echo the value.
  */
 function evalTokenFromRequest(c: any): string {
   const auth = c.req.header("Authorization") || "";
   if (auth.startsWith("Bearer ")) return auth.slice(7).trim();
   if (auth.length > 0) return auth.trim();
-  const legacy = c.req.header("X-Fernweh-Admin-Token") || "";
+  const legacy = c.req.header("X-Musafir-Admin-Token") || "";
   return legacy.startsWith("Bearer ") ? legacy.slice(7).trim() : legacy.trim();
 }
 
@@ -183,15 +185,42 @@ function getDatabase(env: Env) {
   if (env.DB && typeof (env.DB as D1Database).prepare === "function") {
     return wrapD1(env.DB as unknown as D1Database);
   }
-  // Standalone fallback: sql.js in-memory database (no D1 binding available).
+  // Standalone fallback: sql.js database loaded from the repository-root
+  // cafe-musafir.db file (shared with the website team), or an in-memory
+  // database when that file is not available.
   try {
     const sqljs = require("sql.js");
     const Database = (sqljs as { default: unknown }).default || sqljs;
-    const db = new (Database as any)();
-    execStatements(db as any, SCHEMA_SQL);
-    return wrapSqlJs(db as any);
+    const repoDbPath = resolve(__dirname, "../../..", "cafe-musafir.db");
+    let rawDb: any;
+    if (existsSync(repoDbPath)) {
+      const fileData = readFileSync(repoDbPath);
+      rawDb = new (Database as any)(fileData);
+    } else {
+      rawDb = new (Database as any)();
+      execStatements(rawDb as any, SCHEMA_SQL);
+    }
+    standaloneDb = rawDb;
+    return wrapSqlJs(rawDb as any);
   } catch {
     return null;
+  }
+}
+
+/** Raw sql.js Database instance for the standalone fallback, so admin
+ *  mutations can be persisted to the repository-root cafe-musafir.db file. */
+let standaloneDb: any = null;
+
+/** Persist the standalone sql.js database to cafe-musafir.db so admin
+ *  changes survive server restarts. No-op when D1 is used (production). */
+function saveDatabaseToFile(): void {
+  if (!standaloneDb) return;
+  try {
+    const repoDbPath = resolve(__dirname, "../../..", "cafe-musafir.db");
+    const data = standaloneDb.export();
+    writeFileSync(repoDbPath, Buffer.from(data));
+  } catch {
+    // Best-effort persistence; admin changes remain valid for this session.
   }
 }
 
@@ -264,7 +293,7 @@ export default {
         allowHeaders: [
           "Content-Type",
           "Authorization",
-          "X-Fernweh-Eval",
+          "X-Musafir-Eval",
           "X-CSRF-Token",
         ],
         credentials: true,
@@ -494,6 +523,7 @@ export default {
       if (!db) throw new HTTPException(503, { message: "Database not available." });
       const input = await c.req.json<AdminProductInput>();
       const result = await upsertProductAdmin(db as any, input);
+      saveDatabaseToFile();
       return c.json(result);
     });
 
@@ -504,6 +534,7 @@ export default {
       if (!db) throw new HTTPException(503, { message: "Database not available." });
       const id = Number(c.req.param("id"));
       await deleteProductAdmin(db as any, id);
+      saveDatabaseToFile();
       return c.json({ id });
     });
 
@@ -525,6 +556,7 @@ export default {
       if (!db) throw new HTTPException(503, { message: "Database not available." });
       const input = await c.req.json<{ items: Array<{ product_id: number; quantity: number; unit_price_cents: number }> }>();
       const result = await recordSaleAdmin(db as any, input);
+      saveDatabaseToFile();
       return c.json(result);
     });
 
@@ -540,6 +572,7 @@ export default {
         throw new HTTPException(413, { message: "CSV file too large." });
       }
       const result = await importSalesCsvAdmin(db as any, csv);
+      saveDatabaseToFile();
       return c.json(result);
     });
 
@@ -580,6 +613,7 @@ export default {
         throw new HTTPException(400, { message: "Invalid ingredient list." });
       }
       await setProductIngredients(db as any, id, parsed.data.ingredient_ids);
+      saveDatabaseToFile();
       return c.json({ id });
     });
 
@@ -605,6 +639,7 @@ export default {
         throw new HTTPException(400, { message: "Invalid verified flag." });
       }
       await setAllergenVerified(db as any, id, allergenId, parsed.data.verified);
+      saveDatabaseToFile();
       return c.json({ id, allergenId, verified: parsed.data.verified });
     });
 

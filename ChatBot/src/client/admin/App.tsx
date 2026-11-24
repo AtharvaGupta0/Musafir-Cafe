@@ -1,13 +1,16 @@
 /**
- * Café Fernweh admin dashboard.
+ * Cafe Musafir admin dashboard.
  *
  * Single-page React admin interface for menu management and sales.
  * All calls go to the same-origin backend (HttpOnly session cookie is sent
  * automatically by the browser). Protected by admin session auth + CSRF on
  * state-changing endpoints.
+ *
+ * Styled with the shared MUSAFIR Café brand tokens (theme.css): dark ground,
+ * amber accents, serif headings, solid borders, hard offset shadows.
  */
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Product = {
   id: number;
@@ -92,9 +95,6 @@ export default function App() {
     checkSession();
   }, []);
 
-  // Load the data for the view that becomes active. Login and session checks
-  // only switch `view`; without this effect the dashboard would render an empty
-  // table because no request was ever issued.
   useEffect(() => {
     if (view === "menu") {
       void loadMenu();
@@ -235,7 +235,6 @@ export default function App() {
   async function loadSales() {
     setLoading(true);
     try {
-      // /admin/sales returns both the list and the aggregate stats.
       const res = await api("/sales");
       const data = (await res.json()) as any;
       setSales(data.list || []);
@@ -268,27 +267,44 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="p-10 text-center">
-        <p className="text-brown-700">Loading…</p>
+      <div className="admin-loading">
+        <p>Loading…</p>
       </div>
     );
   }
 
+  // ---------- Login ----------
   if (view === "login") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-brown-50">
-        <div className="bg-white p-8 rounded-xl shadow border border-brown-200 w-full max-w-md">
-          <h1 className="text-brown-900 font-serif font-semibold text-2xl mb-6">Café Fernweh Admin</h1>
-          {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
-          <label className="block text-sm font-medium mb-1">Admin token</label>
-          <input
-            type="password"
-            className="w-full p-2 border border-brown-300 rounded mb-4"
-            onChange={(e) => login(e.target.value)}
-            placeholder="Enter admin token"
-          />
+      <div className="admin-login">
+        <div className="admin-login__card admin-card">
+          <div className="admin-login__brand">
+            <div className="admin-mark">M</div>
+            <div>
+              <p className="admin-login__name">Musafir <em>Café</em> Admin</p>
+              <p className="admin-login__tagline">Coffee for the dreamer</p>
+            </div>
+          </div>
+          {error && (
+            <div className="admin-alert">
+              <p className="admin-alert__title">Login failed</p>
+              <p>{error}</p>
+            </div>
+          )}
+          <div className="admin-login__field admin-field">
+            <label className="admin-label" htmlFor="admin-token">Admin token</label>
+            <input
+              id="admin-token"
+              type="password"
+              className="admin-input"
+              value=""
+              onChange={(e) => login(e.target.value)}
+              placeholder="Enter admin token"
+              autoComplete="off"
+            />
+          </div>
           <button
-            className="w-full bg-brown-600 text-white px-4 py-2 rounded hover:bg-brown-700 disabled:opacity-50"
+            className="admin-btn"
             disabled={loading}
           >
             Sign in
@@ -298,134 +314,151 @@ export default function App() {
     );
   }
 
+  // ---------- Authenticated dashboard ----------
   return (
-    <div className="min-h-screen bg-brown-50">
-      <nav className="bg-brown-700 text-white px-6 py-4 flex justify-between items-center">
-        <div className="font-serif font-semibold text-xl">Café Fernweh Admin</div>
-        <div className="flex gap-4">
+    <div className="admin-app">
+      <header className="admin-header admin-card">
+        <div className="admin-brand">
+          <div className="admin-mark">M</div>
+          <div>
+            <p className="admin-name">Musafir <em>Café</em> Admin</p>
+            <p className="admin-tagline">Coffee for the dreamer</p>
+          </div>
+        </div>
+        <nav className="admin-nav">
           <button
             onClick={() => setView("menu")}
-            className={`px-3 py-2 rounded ${view === "menu" ? "bg-brown-600" : "bg-brown-600/30 hover:bg-brown-600/50"}`}
+            className={`admin-nav__btn ${view === "menu" ? "admin-nav__btn--active" : ""}`}
           >
             Menu
           </button>
           <button
             onClick={() => setView("sales")}
-            className={`px-3 py-2 rounded ${view === "sales" ? "bg-brown-600" : "bg-brown-600/30 hover:bg-brown-600/50"}`}
+            className={`admin-nav__btn ${view === "sales" ? "admin-nav__btn--active" : ""}`}
           >
             Sales
           </button>
-          <button onClick={logout} className="text-brown-200 hover:text-white underline">
+          <button onClick={logout} className="admin-signout">
             Sign out
           </button>
-        </div>
-      </nav>
+        </nav>
+      </header>
 
-      {error && (
-        <div className="p-4 max-w-2xl mx-auto bg-red-50 border border-red-200 text-red-700 rounded text-sm">
-          {error}
-        </div>
-      )}
+      <main className="admin-main">
+        {error && (
+          <div className="admin-alert">
+            <p className="admin-alert__title">Error</p>
+            <p>{error}</p>
+          </div>
+        )}
 
-      <main className="max-w-5xl mx-auto p-6">
-        {view === "menu" ? (
-          <>
-            <div className="flex justify-between items-end mb-6">
-              <div>
-                <h2 className="text-brown-900 font-serif font-semibold text-xl mb-1">Menu Management</h2>
-                <p className="text-brown-500 text-sm">View, add and edit products.</p>
-              </div>
-              <button
-                onClick={() => {
-                  setEditProduct(null);
-                  setNewProduct({ category_id: 1, name: "", description: "", price_cents: 5000, available: true, dietary_classification: "none" });
-                }}
-                className="bg-brown-600 text-white px-4 py-2 rounded hover:bg-brown-700"
-              >
-                Add product
-              </button>
+        <section className={`admin-view ${view === "menu" ? "admin-view--active" : ""}`}>
+          <div className="admin-view__head">
+            <div>
+              <h2 className="admin-view__title">Menu Management</h2>
+              <p className="admin-view__subtitle">View, add and edit products.</p>
             </div>
+            <button
+              onClick={() => {
+                setEditProduct(null);
+                setNewProduct({ category_id: 1, name: "", description: "", price_cents: 5000, available: true, dietary_classification: "none" });
+              }}
+              className="admin-btn"
+            >
+              Add product
+            </button>
+          </div>
 
-            <div className="mb-4">
-              <input
-                className="w-full p-2 border border-brown-300 rounded"
-                placeholder="Search products…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+          <input
+            className="admin-search"
+            placeholder="Search products…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
 
-            <table className="w-full border border-brown-200 rounded bg-white">
-              <thead>
-                <tr className="bg-brown-100">
-                  <th className="p-2 text-left">Name</th>
-                  <th className="p-2 text-left">Category</th>
-                  <th className="p-2 text-right">Price</th>
-                  <th className="p-2 text-center">Available</th>
-                  <th className="p-2 text-left">Dietary</th>
-                  <th className="p-2 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map((p) => (
-                  <tr key={p.id} className="border-b border-brown-100">
-                    <td className="p-2">{p.name}</td>
-                    <td className="p-2">{p.category}</td>
-                    <td className="p-2 text-right">{money(p.price_cents)}</td>
-                    <td className="p-2 text-center">{p.available ? "Yes" : "No"}</td>
-                    <td className="p-2">{p.dietary_classification}</td>
-                    <td className="p-2 text-center">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th style={{ textAlign: "right" }}>Price</th>
+                <th style={{ textAlign: "center" }}>Available</th>
+                <th>Dietary</th>
+                <th style={{ textAlign: "center" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.name}</td>
+                  <td>{p.category}</td>
+                  <td style={{ textAlign: "right" }}>{money(p.price_cents)}</td>
+                  <td style={{ textAlign: "center" }}>
+                    <span className={`admin-tag ${p.available ? "admin-tag--available" : "admin-tag--unavailable"}`}>
+                      {p.available ? "Available" : "Unavailable"}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`admin-tag ${p.dietary_classification === "vegan" ? "admin-tag--vegan" : p.dietary_classification === "vegetarian" ? "admin-tag--vegetarian" : ""}`}>
+                      {p.dietary_classification.charAt(0).toUpperCase() + p.dietary_classification.slice(1)}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <button
+                      onClick={() => openProductEditor(p)}
+                      className="admin-btn admin-btn--outline"
+                    >
+                      Edit
+                    </button>
+                    {p.available ? (
                       <button
-                        onClick={() => openProductEditor(p)}
-                        className="text-brown-600 hover:underline text-sm"
+                        onClick={() => deleteProduct(p.id)}
+                        className="admin-btn admin-btn--danger"
                       >
-                        Edit
+                        Deactivate
                       </button>
-                      {p.available ? (
-                        <button
-                          onClick={() => deleteProduct(p.id)}
-                          className="ml-2 text-red-600 hover:underline text-sm"
-                        >
-                          Deactivate
-                        </button>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+              {filteredProducts.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: "center", color: "var(--m-text-muted)" }}>
+                    No products found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
 
-            {editProduct && (
-              <div className="mt-8 bg-white p-6 rounded border border-brown-200">
-                <h3 className="text-brown-900 font-semibold mb-4">Edit {editProduct.name}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Name</label>
+          {editProduct && (
+            <div className="admin-card" style={{ marginTop: 20 }}>
+              <div className="admin-card__body">
+                <h3 className="admin-card__title">Edit {editProduct.name}</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div className="admin-field">
+                    <label className="admin-label">Name</label>
                     <input
-                      className="w-full p-2 border border-brown-300 rounded"
+                      className="admin-input"
                       value={editProduct.name}
                       onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Price (paise)</label>
+                  <div className="admin-field">
+                    <label className="admin-label">Price (paise)</label>
                     <input
                       type="number"
-                      className="w-full p-2 border border-brown-300 rounded"
+                      className="admin-input"
                       value={editProduct.price_cents}
-                      onChange={(e) =>
-                        setEditProduct({ ...editProduct, price_cents: Number(e.target.value) || 0 })
-                      }
+                      onChange={(e) => setEditProduct({ ...editProduct, price_cents: Number(e.target.value) || 0 })}
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Dietary</label>
+                  <div className="admin-field">
+                    <label className="admin-label">Dietary</label>
                     <select
-                      className="w-full p-2 border border-brown-300 rounded"
+                      className="admin-select"
                       value={editProduct.dietary_classification}
-                      onChange={(e) =>
-                        setEditProduct({ ...editProduct, dietary_classification: e.target.value as any })
-                      }
+                      onChange={(e) => setEditProduct({ ...editProduct, dietary_classification: e.target.value as any })}
                     >
                       <option>none</option>
                       <option>vegan</option>
@@ -434,24 +467,19 @@ export default function App() {
                       <option>lactose_free</option>
                     </select>
                   </div>
-                  <div className="flex items-end">
-                    <label className="mr-2 text-sm">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={editProduct.available}
-                          onChange={(e) =>
-                            setEditProduct({ ...editProduct, available: e.target.checked })
-                          }
-                        />
-                        <span>Available</span>
-                      </label>
-                    </label>
+                  <div className="admin-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={editProduct.available}
+                      onChange={(e) => setEditProduct({ ...editProduct, available: e.target.checked })}
+                    />
+                    <label>Available</label>
                   </div>
                 </div>
-                <div className="mt-6">
-                  <h4 className="text-brown-800 font-medium mb-2">Ingredients</h4>
-                  <div className="flex flex-wrap gap-2 mb-4">
+
+                <div className="admin-field" style={{ marginTop: 16 }}>
+                  <label className="admin-label">Ingredients</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                     {ingredients.map((ing) => (
                       <button
                         key={ing.id}
@@ -462,99 +490,102 @@ export default function App() {
                             setProductIngredients([...productIngredients, ing.id]);
                           }
                         }}
-                        className={`px-3 py-1 rounded text-sm border ${
-                          productIngredients.includes(ing.id)
-                            ? "bg-brown-600 text-white"
-                            : "bg-white border-brown-300 text-brown-700"
-                        }`}
+                        className={`admin-btn admin-btn--outline ${productIngredients.includes(ing.id) ? "" : ""}`}
+                        style={{
+                          background: productIngredients.includes(ing.id) ? "var(--m-accent)" : "transparent",
+                          borderColor: productIngredients.includes(ing.id) ? "var(--m-border-strong)" : "var(--m-border)",
+                          color: productIngredients.includes(ing.id) ? "#1b1206" : "var(--m-text)",
+                        }}
                       >
                         {ing.name}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="mt-6">
-                  <h4 className="text-brown-800 font-medium mb-2">Allergens (verification)</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+
+                <div className="admin-field" style={{ marginTop: 16 }}>
+                  <label className="admin-label">Allergens (verification)</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                     {productAllergens.map((a) => (
-                      <div key={a.id} className="flex items-center gap-2 p-2 border rounded bg-white">
+                      <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px", background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "var(--m-radius)" }}>
                         <input
                           type="checkbox"
                           checked={a.verified}
                           onChange={() => toggleAllergen(a.id)}
                         />
-                        <span className={a.verified ? "text-brown-700" : "text-brown-400"}>
-                          {a.name} {a.verified ? "✓ verified" : "unverified"}
+                        <span style={{ color: a.verified ? "var(--m-accent)" : "var(--m-text-secondary)" }}>
+                          {a.name} {a.verified ? "&bull; verified" : "&bull; unverified"}
                         </span>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="mt-6 flex gap-2">
+
+                <div style={{ marginTop: 20, display: "flex", gap: "10px" }}>
                   <button
                     onClick={() => {
                       saveIngredients();
                       saveProduct();
                     }}
-                    className="bg-brown-600 text-white px-4 py-2 rounded hover:bg-brown-700"
+                    className="admin-btn"
                   >
                     Save changes
                   </button>
                   <button
                     onClick={() => setEditProduct(null)}
-                    className="border border-brown-300 text-brown-700 px-4 py-2 rounded hover:bg-brown-50"
+                    className="admin-btn admin-btn--outline"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            <div className="mt-8 bg-white p-6 rounded border border-brown-200">
-              <h3 className="text-brown-900 font-semibold mb-4">New product</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Category id</label>
+          <div className="admin-card" style={{ marginTop: 20 }}>
+            <div className="admin-card__body">
+              <h3 className="admin-card__title">New product</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px" }}>
+                <div className="admin-field">
+                  <label className="admin-label">Category id</label>
                   <input
                     type="number"
-                    className="w-full p-2 border border-brown-300 rounded"
+                    className="admin-input"
                     value={newProduct.category_id}
                     onChange={(e) => setNewProduct({ ...newProduct, category_id: Number(e.target.value) || 1 })}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Name</label>
+                <div className="admin-field">
+                  <label className="admin-label">Name</label>
                   <input
-                    className="w-full p-2 border border-brown-300 rounded"
+                    className="admin-input"
                     value={newProduct.name}
                     onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Price (paise)</label>
+                <div className="admin-field">
+                  <label className="admin-label">Price (paise)</label>
                   <input
                     type="number"
-                    className="w-full p-2 border border-brown-300 rounded"
+                    className="admin-input"
                     value={newProduct.price_cents}
                     onChange={(e) => setNewProduct({ ...newProduct, price_cents: Number(e.target.value) || 0 })}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Description</label>
+                <div className="admin-field">
+                  <label className="admin-label">Description</label>
                   <input
-                    className="w-full p-2 border border-brown-300 rounded"
+                    className="admin-input"
                     value={newProduct.description}
                     onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Dietary</label>
+                <div className="admin-field">
+                  <label className="admin-label">Dietary</label>
                   <select
-                    className="w-full p-2 border border-brown-300 rounded"
+                    className="admin-select"
                     value={newProduct.dietary_classification}
-                    onChange={(e) =>
-                      setNewProduct({ ...newProduct, dietary_classification: e.target.value as any })
-                    }
+                    onChange={(e) => setNewProduct({ ...newProduct, dietary_classification: e.target.value as any })}
                   >
                     <option>none</option>
                     <option>vegan</option>
@@ -563,147 +594,155 @@ export default function App() {
                     <option>lactose_free</option>
                   </select>
                 </div>
-                <div className="flex items-end">
-                  <label className="mr-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={newProduct.available}
-                      onChange={(e) => setNewProduct({ ...newProduct, available: e.target.checked })}
-                    />
-                    Available
-                  </label>
+                <div className="admin-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={newProduct.available}
+                    onChange={(e) => setNewProduct({ ...newProduct, available: e.target.checked })}
+                  />
+                  <label>Available</label>
                 </div>
-                <div className="col-span-3">
-                  <button onClick={createProduct} className="bg-brown-600 text-white px-4 py-2 rounded hover:bg-brown-700">
-                    Create product
-                  </button>
-                </div>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <button onClick={createProduct} className="admin-btn">
+                  Create product
+                </button>
               </div>
             </div>
-          </>
-        ) : (
-          <>
-            <div className="flex justify-between items-end mb-6">
-              <div>
-                <h2 className="text-brown-900 font-serif font-semibold text-xl mb-1">Sales</h2>
-                <p className="text-brown-500 text-sm">Record sales, import CSV, view statistics.</p>
+          </div>
+        </section>
+
+        <section className={`admin-view ${view === "sales" ? "admin-view--active" : ""}`}>
+          <div className="admin-view__head">
+            <div>
+              <h2 className="admin-view__title">Sales</h2>
+              <p className="admin-view__subtitle">Record sales, import CSV, view statistics.</p>
+            </div>
+          </div>
+
+          {stats && (
+            <div className="admin-stats">
+              <div className="admin-stat">
+                <p className="admin-stat__label">Total transactions</p>
+                <p className="admin-stat__value">{stats.transactions}</p>
+              </div>
+              <div className="admin-stat">
+                <p className="admin-stat__label">Total revenue</p>
+                <p className="admin-stat__value">{stats.total_inr}</p>
+              </div>
+              <div className="admin-stat">
+                <p className="admin-stat__label">Avg order value</p>
+                <p className="admin-stat__value">{stats.total_cents > 0 ? money(Math.round(stats.total_cents / stats.transactions)) : "₹0.00"}</p>
               </div>
             </div>
+          )}
 
-            {stats && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-white p-4 rounded border border-brown-200">
-                  <div className="text-brown-500 text-xs">Total transactions</div>
-                  <div className="text-brown-900 font-semibold">{stats.transactions}</div>
-                </div>
-                <div className="bg-white p-4 rounded border border-brown-200">
-                  <div className="text-brown-500 text-xs">Total revenue</div>
-                  <div className="text-brown-900 font-semibold">{stats.total_inr}</div>
-                </div>
-                <div className="bg-white p-4 rounded border border-brown-200">
-                  <div className="text-brown-500 text-xs">Avg order value</div>
-                  <div className="text-brown-900 font-semibold">{stats.total_cents > 0 ? money(Math.round(stats.total_cents / stats.transactions)) : "₹0.00"}</div>
-                </div>
-              </div>
-            )}
-
-            <div className="mb-6 bg-white p-6 rounded border border-brown-200">
-              <h3 className="text-brown-900 font-semibold mb-4">Record sale</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Product id</label>
+          <div className="admin-card" style={{ marginBottom: 20 }}>
+            <div className="admin-card__body">
+              <h3 className="admin-card__title">Record sale</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" }}>
+                <div className="admin-field">
+                  <label className="admin-label">Product id</label>
                   <input
                     type="number"
-                    className="w-full p-2 border border-brown-300 rounded"
+                    className="admin-input"
                     value={newSale.product_id}
                     onChange={(e) => setNewSale({ ...newSale, product_id: Number(e.target.value) || 1 })}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Quantity</label>
+                <div className="admin-field">
+                  <label className="admin-label">Quantity</label>
                   <input
                     type="number"
-                    className="w-full p-2 border border-brown-300 rounded"
+                    className="admin-input"
                     value={newSale.quantity}
                     onChange={(e) => setNewSale({ ...newSale, quantity: Number(e.target.value) || 1 })}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Unit price (paise)</label>
+                <div className="admin-field">
+                  <label className="admin-label">Unit price (paise)</label>
                   <input
                     type="number"
-                    className="w-full p-2 border border-brown-300 rounded"
+                    className="admin-input"
                     value={newSale.unit_price_cents}
                     onChange={(e) => setNewSale({ ...newSale, unit_price_cents: Number(e.target.value) || 0 })}
                   />
                 </div>
-                <div className="flex items-end">
-                  <button onClick={recordSale} className="bg-brown-600 text-white px-4 py-2 rounded hover:bg-brown-700">
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <button onClick={recordSale} className="admin-btn">
                     Record
                   </button>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="mb-6 bg-white p-6 rounded border border-brown-200">
-              <h3 className="text-brown-900 font-semibold mb-4">Import sales (CSV)</h3>
-              <p className="text-sm text-brown-500 mb-3">
-                Columns: product_id,quantity,unit_price_cents
-              </p>
+          <div className="admin-card">
+            <div className="admin-card__body">
+              <h3 className="admin-card__title">Import sales (CSV)</h3>
+              <p className="admin-label" style={{ marginBottom: 8 }}>Columns: product_id,quantity,unit_price_cents</p>
               <textarea
-                className="w-full p-2 border border-brown-300 rounded mb-3"
+                className="admin-input admin-textarea"
                 rows={4}
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}
-                placeholder="product_id,quantity,unit_price_cents\n1,2,9000\n17,1,5000"
+                placeholder="product_id,quantity,unit_price_cents&#xA;1,2,9000&#xA;17,1,5000"
               />
               <button
                 onClick={importCsv}
-                className="bg-brown-600 text-white px-4 py-2 rounded hover:bg-brown-700 disabled:opacity-50"
+                className="admin-btn"
                 disabled={!csvText.trim()}
               >
                 Import
               </button>
               {importResult && (
-                <div className="mt-3 p-3 rounded bg-brown-50 text-sm">
-                  Imported: <span className="font-semibold">{importResult.imported}</span>{" "}
-                  Rejected:{" "}
-                  <span className="font-semibold text-red-600">{importResult.rejected.length}</span>
+                <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "var(--m-radius)" }}>
+                  <p style={{ margin: "0 0 6px", fontSize: "12px", color: "var(--m-text-secondary)" }}>
+                    Imported: <span style={{ fontWeight: "600" }}>{importResult.imported}</span>{" "}
+                    Rejected:{" "}
+                    <span style={{ fontWeight: "600", color: "var(--m-accent-soft)" }}>{importResult.rejected.length}</span>
+                  </p>
                   {importResult.rejected.slice(0, 5).map((r) => (
-                    <div key={r.row} className="text-xs text-brown-600">
+                    <p key={r.row} style={{ margin: 0, fontSize: "11px", color: "var(--m-text-muted)" }}>
                       Row {r.row}: {r.reason}
-                    </div>
+                    </p>
                   ))}
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="bg-white rounded border border-brown-200">
-              <h3 className="text-brown-900 font-semibold p-4 border-b border-brown-200">Recent sales</h3>
-              <table className="w-full text-sm">
+          <div className="admin-card" style={{ marginTop: 20 }}>
+            <div className="admin-card__body">
+              <h3 className="admin-card__title">Recent sales</h3>
+              <table className="admin-table">
                 <thead>
-                  <tr className="bg-brown-50">
-                    <th className="p-2 text-left">Id</th>
-                    <th className="p-2 text-left">Revenue</th>
-                    <th className="p-2 text-left">Date</th>
+                  <tr>
+                    <th>Id</th>
+                    <th style={{ textAlign: "right" }}>Revenue</th>
+                    <th>Date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sales.slice(0, 10).map((s) => (
-                    <tr key={s.id} className="border-b border-brown-100">
-                      <td className="p-2">{s.id}</td>
-                      <td className="p-2 text-right">{s.total_inr}</td>
-                      <td className="p-2">{s.created_at}</td>
+                    <tr key={s.id}>
+                      <td>{s.id}</td>
+                      <td style={{ textAlign: "right" }}>{s.total_inr}</td>
+                      <td>{s.created_at}</td>
                     </tr>
                   ))}
                   {sales.length === 0 && (
-                    <tr><td colSpan={3} className="p-4 text-center text-brown-400">No sales recorded.</td></tr>
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: "center", color: "var(--m-text-muted)" }}>
+                        No sales recorded.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </>
-        )}
+          </div>
+        </section>
       </main>
     </div>
   );

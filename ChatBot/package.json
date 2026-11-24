@@ -1,8 +1,8 @@
 {
-  "name": "cafe-fernweh",
+  "name": "cafe-musafir",
   "private": true,
   "version": "1.0.0",
-  "description": "Café Fernweh — AI-powered café chatbot and academic AI behaviour research prototype (Sprint 1)",
+  "description": "Cafe Musafir — AI-powered café chatbot and academic AI behaviour research prototype (Sprint 1)",
   "license": "UNLICENSED",
   "scripts": {
     "dev:client": "vite --config src/client/vite.config.ts",

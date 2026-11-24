@@ -20,7 +20,9 @@ import { mkdirSync } from "fs";
 import Database from "sql.js";
 
 const ROOT = join(__dirname, "..");
+const REPO_ROOT = join(ROOT, "..");
 const OUT = join(ROOT, ".data", "local.db");
+const REPO_OUT = join(REPO_ROOT, "cafe-musafir.db");
 
 async function main() {
   const sqljsModule = await import("sql.js");
@@ -39,6 +41,12 @@ async function main() {
   require("fs").writeFileSync(OUT, Buffer.from(data));
   // eslint-disable-next-line no-console
   console.log(`Seeded local database -> ${OUT}`);
+
+  // Also publish a copy at the repository root so it can be shared with the
+  // website and other tools that need the cafe menu database.
+  require("fs").writeFileSync(REPO_OUT, Buffer.from(data));
+  // eslint-disable-next-line no-console
+  console.log(`Seeded repository database -> ${REPO_OUT}`);
 }
 
 main().catch((err) => {

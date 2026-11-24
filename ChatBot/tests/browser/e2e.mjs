@@ -73,7 +73,7 @@ try {
   await adminPage.getByPlaceholder("Enter admin token").waitFor({ timeout: 15_000 });
   check(true, "admin dashboard loads at /admin/");
   check(
-    await adminPage.getByText("Café Fernweh Admin").first().isVisible(),
+    await adminPage.getByText("Cafe Musafir Admin").first().isVisible(),
     "admin login screen renders"
   );
 

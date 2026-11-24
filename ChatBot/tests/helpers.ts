@@ -3,7 +3,7 @@ import type { DatabaseLike } from "@shared/types";
 import { SCHEMA_SQL, SEED_SQL } from "../src/server/lib/init-sql";
 
 /**
- * Build an in-memory sql.js database initialized with the Café Fernweh schema
+ * Build an in-memory sql.js database initialized with the Cafe Musafir schema
  * and seed data. Mirrors D1's parameterised-statement interface so the same
  * menu operations run in tests as in production.
  *

@@ -4,9 +4,10 @@ The MUSAFIR Café chatbot is a standalone AI-powered café assistant and academi
 AI behaviour research prototype. It runs independently of the main café website
 and can later be embedded into it as a framework-independent widget.
 
-> The visible product is branded **MUSAFIR Café**. The Git repository, Worker
-> name and package identifier remain `Cafe-Fernweh` for continuity, and
-> historical experiment records keep their original identifiers.
+> The visible product is branded **MUSAFIR Café**. The repository, Worker
+> name, package identifier and admin branding have been renamed to
+> **Cafe Musafir**; historical experiment records keep their original
+> `Cafe-Fernweh` identifiers as an immutable record of past runs.
 
 ## What it does
 

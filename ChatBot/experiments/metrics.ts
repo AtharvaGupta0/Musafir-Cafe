@@ -245,7 +245,7 @@ function runMetrics(files: string[]): void {
   for (const record of records) buckets[classify(record)].push(record);
 
   console.log("================================================================================");
-  console.log("Café Fernweh — Evaluation metrics");
+  console.log("Cafe Musafir — Evaluation metrics");
   console.log("================================================================================");
   console.log(`Files: ${files.join(", ")}`);
   console.log(`Total case records: ${records.length}`);

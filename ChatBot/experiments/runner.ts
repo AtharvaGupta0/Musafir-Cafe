@@ -1,7 +1,7 @@
 /**
  * experiments/runner.ts
  *
- * Quota-conscious, resumable evaluation runner for the Café Fernweh AI
+ * Quota-conscious, resumable evaluation runner for the Cafe Musafir AI
  * behaviour study.
  *
  * Runs the experimental dataset (experiments/eval-dataset.json) against the
@@ -683,7 +683,7 @@ async function main(): Promise<void> {
   const pending = cases.filter((c) => !completed.has(c.id));
   const batch = config.batchSize > 0 ? pending.slice(0, config.batchSize) : pending;
 
-  console.log("Café Fernweh evaluation runner");
+  console.log("Cafe Musafir evaluation runner");
   console.log(`  runId: ${runId}`);
   console.log(`  datasetVersion: ${dataset.schemaVersion}`);
   console.log(`  config: ${config.configId} (${config.mode})`);

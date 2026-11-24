@@ -169,7 +169,7 @@ function createDemoProvider(config: InferenceConfig): InferenceProvider {
       let answer = "I'm running in demonstration mode without a real AI model. ";
       if (userText.includes("menu") || userText.includes("what")) {
         answer +=
-          "Here is a simulated overview of Café Fernweh's menu: espresso ₹90, " +
+          "Here is a simulated overview of Cafe Musafir's menu: espresso ₹90, " +
           "americano ₹110, cappuccino ₹160, latte ₹170, masala chai ₹60, " +
           "mint lemonade ₹100, veg samosa ₹50, and butter croissant ₹110. " +
           "Prices are fictional and shown as a demonstration.";
