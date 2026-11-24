@@ -173,6 +173,207 @@ try {
 
   await adminContext.close();
 
+  // ------------------------------------------------------- standalone chat UI
+  const mockChat = {
+    reply:
+      "The Espresso is the most affordable coffee on the menu. The Mocha is currently unavailable.",
+    conversation_id: "11111111-1111-4111-8111-111111111111",
+    grounding_mode: "retrieval_validation",
+    used_tools: ["filter_products"],
+    products: [
+      {
+        id: 1,
+        category_id: 1,
+        category: "Coffee",
+        name: "Espresso",
+        description: "A concentrated shot of arabica coffee, served black.",
+        price_cents: 9000,
+        price_inr: "₹90.00",
+        available: true,
+        dietary_classification: "vegan",
+        ingredients: ["espresso"],
+        allergens: [{ name: "milk", verified: false }],
+      },
+      {
+        id: 6,
+        category_id: 1,
+        category: "Coffee",
+        name: "Mocha",
+        description: "Espresso, chocolate and steamed milk.",
+        price_cents: 19000,
+        price_inr: "₹190.00",
+        available: false,
+        dietary_classification: "none",
+        ingredients: ["espresso", "chocolate", "milk"],
+        allergens: [{ name: "milk", verified: true }],
+      },
+    ],
+  };
+
+  const uiContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const uiPage = await uiContext.newPage();
+  const uiConsoleErrors = [];
+  uiPage.on("console", (message) => {
+    if (message.type() === "error") uiConsoleErrors.push(message.text());
+  });
+
+  let chatRequests = 0;
+  const chatBodies = [];
+  await uiPage.route("**/chat", async (route) => {
+    chatRequests += 1;
+    chatBodies.push(JSON.parse(route.request().postData() || "{}"));
+    // Keep the pending state observable without relying on real inference.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(mockChat),
+    });
+  });
+
+  await uiPage.goto(`${BASE}/client/`, { waitUntil: "domcontentloaded" });
+  await uiPage
+    .getByRole("heading", { name: /Welcome to Musafir Café/i })
+    .waitFor({ timeout: 15_000 });
+  check(true, "standalone chat renders the branded welcome state");
+
+  for (const label of [
+    "Explore the menu",
+    "Recommend a coffee",
+    "Something under ₹200",
+    "Popular favourites",
+  ]) {
+    check(await uiPage.getByRole("button", { name: label }).isVisible(), `suggestion control: ${label}`);
+  }
+
+  const composer = uiPage.getByLabel("Your message");
+  await uiPage.getByRole("button", { name: "Something under ₹200" }).click();
+  check(await uiPage.locator(".typing").isVisible(), "typing indicator shows while the reply is pending");
+  check(
+    ((await uiPage.locator(".turn--customer .bubble").first().textContent()) ?? "").includes(
+      "under ₹200"
+    ),
+    "clicking a suggestion submits its customer query"
+  );
+
+  await uiPage.locator(".product").first().waitFor({ timeout: 10_000 });
+  check(
+    chatBodies[0]?.message === "What can I get for under ₹200?",
+    "suggestion sends a real query payload",
+    JSON.stringify(chatBodies[0])
+  );
+  check(
+    (await uiPage.locator(".product").count()) === 2,
+    "structured product cards render from the response"
+  );
+  check(
+    ((await uiPage.locator(".product__price").first().textContent()) ?? "").includes("₹90.00"),
+    "product prices render in INR"
+  );
+
+  const unavailableCard = (await uiPage.locator(".product").nth(1).textContent()) ?? "";
+  check(unavailableCard.includes("Currently unavailable"), "unavailable products are marked");
+  check(
+    unavailableCard.includes("Contains: milk"),
+    "verified allergens are shown on the product card"
+  );
+  check(
+    !unavailableCard.includes("Allergen data unverified"),
+    "verified allergen data is not flagged as unverified"
+  );
+  const veganCard = (await uiPage.locator(".product").first().textContent()) ?? "";
+  check(
+    veganCard.includes("Allergen data unverified"),
+    "unverified allergen data is flagged, never assumed safe"
+  );
+
+  await uiPage
+    .waitForFunction(() => document.activeElement?.id === "composer-input", null, { timeout: 5000 })
+    .catch(() => {});
+  const composerFocus = await uiPage.evaluate(() => document.activeElement?.id);
+  check(
+    composerFocus === "composer-input",
+    "focus returns to the composer after a reply",
+    String(composerFocus)
+  );
+
+  await composer.fill("Do you have a decaf option?");
+  await composer.press("Enter");
+  check((await composer.inputValue()) === "", "Enter submits and the composer clears immediately");
+  await uiPage.locator(".turn--assistant .bubble").nth(1).waitFor({ timeout: 10_000 });
+  check(chatRequests === 2, "Enter submits exactly one request", `requests=${chatRequests}`);
+
+  await composer.fill("first line");
+  await composer.press("Shift+Enter");
+  await composer.type("second line");
+  check((await composer.inputValue()).includes("\n"), "Shift+Enter inserts a newline");
+  check(chatRequests === 2, "Shift+Enter does not submit", `requests=${chatRequests}`);
+
+  await composer.fill("");
+  check(
+    await uiPage.getByRole("button", { name: "Send message" }).isDisabled(),
+    "empty submissions are blocked"
+  );
+  await composer.press("Enter");
+  check(chatRequests === 2, "empty Enter does not submit", `requests=${chatRequests}`);
+
+  check(
+    (await uiPage.locator('[role="log"][aria-live="polite"]').count()) === 1,
+    "assistant replies are announced through an aria-live log"
+  );
+
+  const uiOverflow = await uiPage.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+  }));
+  check(
+    uiOverflow.scroll <= uiOverflow.viewport,
+    "standalone has no horizontal overflow at desktop width",
+    JSON.stringify(uiOverflow)
+  );
+
+  const uiScripts = await uiPage.evaluate(() =>
+    Array.from(document.scripts)
+      .map((script) => script.src)
+      .filter(Boolean)
+  );
+  let uiSecrets = false;
+  for (const source of uiScripts) {
+    const body = await (await uiPage.request.get(source)).text();
+    if (/AIza[0-9A-Za-z_-]{20,}|GEMINI_API_KEY/.test(body)) uiSecrets = true;
+  }
+  check(!uiSecrets, "standalone JS bundle contains no API credentials");
+
+  const uiConsole = uiConsoleErrors.filter((line) => !line.includes("favicon"));
+  check(uiConsole.length === 0, "standalone page has no console errors", uiConsole.join(" | "));
+  await uiContext.close();
+
+  // ------------------------------------------------------ standalone mobile
+  const mobileUiContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const mobileUiPage = await mobileUiContext.newPage();
+  await mobileUiPage.goto(`${BASE}/client/`, { waitUntil: "domcontentloaded" });
+  await mobileUiPage
+    .getByRole("heading", { name: /Welcome to Musafir Café/i })
+    .waitFor({ timeout: 15_000 });
+  const mobileOverflow = await mobileUiPage.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+  }));
+  check(
+    mobileOverflow.scroll <= mobileOverflow.viewport,
+    "standalone has no horizontal overflow at 390px",
+    JSON.stringify(mobileOverflow)
+  );
+  const suggestionBox = await mobileUiPage
+    .getByRole("button", { name: "Explore the menu" })
+    .boundingBox();
+  check(
+    Boolean(suggestionBox) && suggestionBox.height >= 44,
+    "suggestion controls meet a 44px touch target",
+    JSON.stringify(suggestionBox)
+  );
+  await mobileUiContext.close();
+
   // -------------------------------------------------------------- widget UI
   const widgetContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const widgetPage = await widgetContext.newPage();
@@ -202,9 +403,21 @@ try {
 
   check(await widgetPage.locator("#launcher").isVisible(), "launcher is visible on load");
   check(!(await widgetPage.locator("#wrap").isVisible()), "chat panel is closed on load");
+  check(
+    /Musafir Assistant/.test((await widgetPage.locator("#launcher").textContent()) ?? ""),
+    "widget launcher carries the Musafir label"
+  );
 
   await widgetPage.locator("#launcher").click();
   check(await widgetPage.locator("#wrap").isVisible(), "launcher opens the chat panel");
+  check(
+    await widgetPage.getByText("Welcome to Musafir Café.").isVisible(),
+    "widget welcome state is branded"
+  );
+  check(
+    (await widgetPage.locator(".suggestion").count()) === 4,
+    "widget welcome shows four suggestion controls"
+  );
   const inputFocused = await widgetPage.evaluate(() => {
     const root = document.querySelector("cafe-chatbot")?.shadowRoot;
     return root?.activeElement?.id === "input";
@@ -283,6 +496,32 @@ try {
   const errorText = (await offlinePage.locator(".msg.error").first().textContent()) ?? "";
   check(/couldn't reach/i.test(errorText), "widget shows a friendly error when the API is unreachable");
   await offlineContext.close();
+
+  // ------------------------------------------------ widget product cards
+  const mockContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const mockPage = await mockContext.newPage();
+  await mockPage.route("**/chat", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(mockChat),
+    })
+  );
+  await mockPage.goto(`${HOST}/widget-host.html`, { waitUntil: "domcontentloaded" });
+  await mockPage.locator("#launcher").click();
+  await mockPage.locator("#input").fill("What is the cheapest coffee?");
+  await mockPage.locator("#input").press("Enter");
+  check((await mockPage.locator("#input").inputValue()) === "", "widget composer clears on submit");
+  await mockPage.locator(".card").first().waitFor({ timeout: 10_000 });
+  check(
+    (await mockPage.locator(".card").count()) === 2,
+    "widget renders structured product cards"
+  );
+  check(
+    ((await mockPage.locator(".card__price").first().textContent()) ?? "").includes("₹90.00"),
+    "widget product price renders in INR"
+  );
+  await mockContext.close();
 } catch (error) {
   failures += 1;
   console.error(`FAIL  browser suite threw — ${error instanceof Error ? error.stack : String(error)}`);
