@@ -1,6 +1,6 @@
-# Café Fernweh — Security audit
+# MUSAFIR Café — Security audit
 
-Café Fernweh is an AI chatbot and academic AI-behaviour research prototype. This document records the security design, the verified controls, the limitations that remain, and what must not be claimed about production readiness.
+MUSAFIR Café is an AI chatbot and academic AI-behaviour research prototype. This document records the security design, the verified controls, the limitations that remain, and what must not be claimed about production readiness.
 
 ## Threat model and scope
 

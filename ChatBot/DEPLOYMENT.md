@@ -1,4 +1,4 @@
-# Café Fernweh — Deployment readiness
+# MUSAFIR Café — Deployment readiness
 
 Deployment checklist for Cloudflare Workers + D1. Nothing here authorises a public deploy; a deploy requires explicit authorisation and account access.
 

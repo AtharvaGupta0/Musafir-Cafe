@@ -1,8 +1,12 @@
-# Café Fernweh ChatBot
+# MUSAFIR Café ChatBot
 
-The Café Fernweh chatbot is a standalone AI-powered café assistant and academic
+The MUSAFIR Café chatbot is a standalone AI-powered café assistant and academic
 AI behaviour research prototype. It runs independently of the main café website
 and can later be embedded into it as a framework-independent widget.
+
+> The visible product is branded **MUSAFIR Café**. The Git repository, Worker
+> name and package identifier remain `Cafe-Fernweh` for continuity, and
+> historical experiment records keep their original identifiers.
 
 ## What it does
 
@@ -19,7 +23,7 @@ and can later be embedded into it as a framework-independent widget.
 ## Tech stack
 
 - React + TypeScript + Vite (frontend)
-- Tailwind CSS (styling)
+- Plain CSS with semantic tokens for the customer UI; Tailwind for the admin dashboard
 - Cloudflare Workers + Hono (backend)
 - Cloudflare D1 / SQLite (database)
 - Gemini 2.5/3.5 Flash-Lite (inference, server-side only)
@@ -75,6 +79,25 @@ Or run the backend against a local D1:
 ```bash
 npm run dev:server -- --local
 ```
+
+### Embedding the widget
+
+```bash
+npm run build:widget        # public/widget/cafe-chatbot-widget.iife.js
+```
+
+The host page loads the script and inserts one element. The launcher reads
+"Musafir Assistant"; the panel itself is rendered inside a shadow root, so host
+CSS cannot reach it.
+
+```html
+<script src="https://<your-worker-host>/widget/cafe-chatbot-widget.iife.js" defer></script>
+<cafe-chatbot api-base="https://<your-worker-host>"></cafe-chatbot>
+```
+
+`api-base` must point at the Worker origin that serves `/chat`; credentials stay
+server-side. The element exposes `open()` and `close()` for programmatic
+control.
 
 ## Experimental configurations
 
