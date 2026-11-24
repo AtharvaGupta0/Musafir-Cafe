@@ -8,7 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   plugins: [react()],
   root: __dirname,
-  base: "/",
+  // Relative base so the built app works wherever the Worker mounts it
+  // (currently /client/) without hard-coding the mount path in asset URLs.
+  base: "./",
   publicDir: path.resolve(__dirname, "../public"),
   build: {
     outDir: path.resolve(__dirname, "../../public/client"),
