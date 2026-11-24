@@ -1,102 +1,156 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { postChat } from "../lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { postChat, ChatApiError, type Product } from "../lib/api";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
-import { ProductCard } from "./ProductCard";
+import { WelcomePanel } from "./WelcomePanel";
 
-interface MenuProduct {
-  id: number;
-  category: string | undefined;
-  name: string;
-  price_inr: string;
-  available: boolean;
-  dietary_classification: string;
-  ingredients: string[];
+interface ChatMessage {
+  id: string;
+  role: "customer" | "assistant";
+  content: string;
+  products?: Product[];
 }
 
-interface ChatProps {
-  apiBase?: string;
+interface ChatError {
+  message: string;
+  /** The message that failed, so it can be retried without being echoed twice. */
+  retry: string;
 }
 
-export function Chat({ apiBase }: ChatProps = {}) {
-  const [messages, setMessages] = useState<Array<{ role: "customer" | "assistant"; content: string }>>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+let messageSeq = 0;
+const nextMessageId = () => `m${(messageSeq += 1)}`;
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function TypingIndicator() {
+  return (
+    <div className="turn turn--assistant">
+      <p className="turn__meta">Musafir</p>
+      <div className="bubble typing" aria-hidden="true">
+        <span className="typing__dot" />
+        <span className="typing__dot" />
+        <span className="typing__dot" />
+      </div>
+      <span className="sr-only">Musafir is replying…</span>
+    </div>
+  );
+}
+
+export function Chat() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [value, setValue] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<ChatError | null>(null);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
-  const [products, setProducts] = useState<MenuProduct[] | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-  useEffect(() => { scrollToBottom(); }, [messages, products, loading, error]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const nearBottomRef = useRef(true);
+  const inFlightRef = useRef(false);
 
-  const handleSubmit = useCallback(
-    async (value: string) => {
+  const runRequest = useCallback(
+    async (raw: string, echo: boolean) => {
+      const message = raw.trim();
+      if (!message || inFlightRef.current) return;
+
+      inFlightRef.current = true;
+      nearBottomRef.current = true;
+      setPending(true);
       setError(null);
-      setLoading(true);
+
+      if (echo) {
+        setMessages((prev) => [
+          ...prev,
+          { id: nextMessageId(), role: "customer", content: message },
+        ]);
+        setValue("");
+      }
+
       try {
         const data = await postChat({
-          message: value,
+          message,
           conversationId,
           groundingMode: "retrieval_validation",
         });
         setConversationId(data.conversation_id);
-        setMessages((prev) => [...prev, { role: "customer", content: value }, { role: "assistant", content: data.reply }]);
-        setProducts(data.products || null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextMessageId(),
+            role: "assistant",
+            content: data.reply,
+            products: data.products.length > 0 ? data.products : undefined,
+          },
+        ]);
+      } catch (cause) {
+        const detail =
+          cause instanceof ChatApiError
+            ? cause.message
+            : "Something went wrong while contacting the assistant. Please try again.";
+        setError({ message: detail, retry: message });
       } finally {
-        setLoading(false);
+        inFlightRef.current = false;
+        setPending(false);
       }
     },
     [conversationId]
   );
 
+  const handleSubmit = useCallback((text: string) => void runRequest(text, true), [runRequest]);
+  const handleSuggestion = useCallback((query: string) => void runRequest(query, true), [runRequest]);
+  const handleRetry = useCallback(() => {
+    if (error) void runRequest(error.retry, false);
+  }, [error, runRequest]);
+
+  // Follow the conversation only while the reader is already at the bottom.
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || !nearBottomRef.current) return;
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  }, [messages, pending, error]);
+
+  function handleScroll() {
+    const container = scrollRef.current;
+    if (!container) return;
+    const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
+    nearBottomRef.current = distance < 96;
+  }
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-shrink-0 px-6 py-4 border-b border-brown-200 bg-brown-50/60">
-        <h1 className="text-xl font-serif font-semibold text-brown-900 tracking-tight">Café Fernweh</h1>
-        <p className="text-[12px] text-brown-500 mt-0.5">Chatbot demo · fictional menu · server-grounded responses</p>
+    <>
+      <div className="conversation" ref={scrollRef} onScroll={handleScroll}>
+        <div className="conversation__inner">
+          <div role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation">
+            {messages.length === 0 && !error && <WelcomePanel onSelect={handleSuggestion} />}
+            {messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                role={message.role}
+                content={message.content}
+                products={message.products}
+              />
+            ))}
+            {pending && <TypingIndicator />}
+            {error && (
+              <div className="turn turn--assistant">
+                <p className="turn__meta">Musafir</p>
+                <div className="notice" role="alert">
+                  <p className="notice__title">Message not sent</p>
+                  <p className="notice__text">{error.message}</p>
+                  <button type="button" className="notice__action" onClick={handleRetry}>
+                    Try again
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-
-      <div className="flex-1 overflow-y-auto px-6 py-8">
-        {messages.length === 0 && (
-          <div className="max-w-xl mx-auto text-center text-brown-400 text-sm italic">
-            Welcome to Café Fernweh. Ask me about our menu, prices, availability, ingredients,
-            dietary needs, or recommendations.
-          </div>
-        )}
-        {error && (
-          <div className="max-w-xl mx-auto rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 text-sm mb-6">
-            {error}
-          </div>
-        )}
-        {messages.map((m, i) => (
-          <MessageBubble key={i} role={m.role} content={m.content} />
-        ))}
-        {loading && (
-          <div className="flex justify-start mb-6">
-            <div className="max-w-[85%] rounded-2xl border border-brown-200 bg-white p-3 text-sm text-brown-500 italic">
-              Café Fernweh is thinking…
-            </div>
-          </div>
-        )}
-        {products && products.length > 0 && (
-          <div className="max-w-2xl mx-auto mb-6">
-            <p className="text-[12px] uppercase tracking-wider font-bold text-brown-500 mb-2">Related menu items</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {products.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      <ChatInput value={input} onChange={setInput} onSubmit={handleSubmit} disabled={loading} />
-    </div>
+      <ChatInput value={value} onChange={setValue} onSubmit={handleSubmit} pending={pending} />
+    </>
   );
 }

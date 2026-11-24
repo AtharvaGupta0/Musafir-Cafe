@@ -1,42 +1,85 @@
+import { useEffect, useRef } from "react";
+
 interface ChatInputProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: (value: string) => Promise<void>;
-  disabled: boolean;
+  onSubmit: (value: string) => void;
+  pending: boolean;
 }
 
-export function ChatInput({ value, onChange, onSubmit, disabled }: ChatInputProps) {
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+export function ChatInput({ value, onChange, onSubmit, pending }: ChatInputProps) {
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const canSubmit = value.trim().length > 0 && !pending;
+
+  // Restore focus on first mount and whenever a request settles.
+  useEffect(() => {
+    if (!pending) textRef.current?.focus();
+  }, [pending]);
+
+  // Grow with the message, bounded by the CSS max-height.
+  useEffect(() => {
+    const field = textRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, 160)}px`;
+  }, [value]);
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!value.trim() || disabled) return;
-    await onSubmit(value.trim());
+    if (!canSubmit) return;
+    onSubmit(value.trim());
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Enter sends; Shift+Enter inserts a newline; never submit mid-composition.
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    formRef.current?.requestSubmit();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="sticky bottom-0 w-full pt-3 pb-4 backdrop-blur bg-brown-50/80 border-t border-brown-200">
-      <div className="max-w-2xl mx-auto px-4">
-        <div className="relative">
-          <input
-            id="chat-input"
-            type="text"
+    <form className="composer" onSubmit={handleSubmit} ref={formRef}>
+      <div className="composer__inner">
+        <div className="composer__field">
+          <label className="sr-only" htmlFor="composer-input">
+            Your message
+          </label>
+          <textarea
+            id="composer-input"
+            ref={textRef}
+            className="composer__input"
+            rows={1}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="Ask about the menu, prices, ingredients, or dietary needs…"
-            disabled={disabled}
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask about the menu, prices or dietary needs…"
             autoComplete="off"
-            spellCheck={false}
-            className="w-full rounded-full border border-brown-300 bg-white px-5 py-3 text-brown-900 placeholder-brown-400 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
-            aria-label="Your message"
+            enterKeyHint="send"
+            aria-describedby="composer-hint"
           />
           <button
             type="submit"
-            disabled={disabled || !value.trim()}
-            className="absolute right-2 top-2 rounded-full bg-brown-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-brown-700 focus:outline-none focus:ring-2 focus:ring-brown-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="composer__send"
+            disabled={!canSubmit}
             aria-label="Send message"
           >
-            Send
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="M12 19V5M5 12l7-7 7 7" strokeLinecap="square" />
+            </svg>
           </button>
         </div>
+        <p className="composer__hint" id="composer-hint">
+          Enter to send · <kbd>Shift</kbd> + <kbd>Enter</kbd> for a new line
+        </p>
       </div>
     </form>
   );

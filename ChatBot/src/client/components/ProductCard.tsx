@@ -1,35 +1,44 @@
-interface ProductCardProps {
-  product: {
-    id: number;
-    category: string | undefined;
-    name: string;
-    price_inr: string;
-    available: boolean;
-    dietary_classification: string;
-    ingredients: string[];
-  };
+import type { Product } from "../lib/api";
+
+/** Display string for a product price. The backend already formats INR. */
+function priceLabel(product: Product): string {
+  return product.price_inr ?? `₹${(product.price_cents / 100).toFixed(2)}`;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+/** "dairy_free" → "dairy free"; the kitchen's own classification only. */
+function dietaryLabel(classification: string): string | null {
+  const normalised = classification.trim().toLowerCase();
+  if (!normalised || normalised === "none") return null;
+  return normalised.replace(/_/g, " ");
+}
+
+export function ProductCard({ product }: { product: Product }) {
+  const dietary = dietaryLabel(product.dietary_classification);
+  const verifiedAllergens = product.allergens
+    .filter((allergen) => allergen.verified)
+    .map((allergen) => allergen.name);
+  const hasUnverifiedAllergens = product.allergens.some((allergen) => !allergen.verified);
+
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-brown-200 bg-white p-3 mb-2">
-      <div className="w-9 h-9 rounded-full bg-brown-100 flex items-center justify-center text-brown-700 font-semibold text-xs">
-        {String(product.name).charAt(0).toUpperCase()}
+    <article className="product">
+      <div className="product__top">
+        <span className="product__category">{product.category ?? "Menu"}</span>
+        <span className="product__price">{priceLabel(product)}</span>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2">
-          <h4 className="font-medium text-brown-800 text-sm">{product.name}</h4>
-          <span className="text-brown-500 font-medium">{product.price_inr}</span>
-        </div>
-        <p className="text-xs text-brown-500 truncate">
-          {product.category} · {product.dietary_classification}
-        </p>
-        {!product.available && (
-          <span className="text-[10px] uppercase tracking-wider font-bold text-brown-500 bg-brown-50 px-2 py-0.5 rounded">
-            unavailable
-          </span>
+      <h3 className="product__name">{product.name}</h3>
+      <p className="product__desc">{product.description}</p>
+      <div className="product__tags">
+        <span className={product.available ? "tag tag--available" : "tag tag--unavailable"}>
+          {product.available ? "Available" : "Currently unavailable"}
+        </span>
+        {dietary && <span className="tag">{dietary}</span>}
+        {verifiedAllergens.length > 0 && (
+          <span className="tag tag--allergen">Contains: {verifiedAllergens.join(", ")}</span>
+        )}
+        {hasUnverifiedAllergens && (
+          <span className="tag tag--uncertain">Allergen data unverified</span>
         )}
       </div>
-    </div>
+    </article>
   );
 }

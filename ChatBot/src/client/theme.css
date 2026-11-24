@@ -1,0 +1,37 @@
+/**
+ * MUSAFIR Café — brand tokens.
+ *
+ * Single source of truth for colour, type and shape. The standalone app
+ * imports this file from index.css; the embeddable widget imports it with
+ * `?inline` and re-scopes the `:root` selector to `:host` so the shadow tree
+ * inherits exactly the same values (see src/client/widget/widget.ts).
+ *
+ * No external font requests: the stacks below resolve to locally installed
+ * faces only.
+ */
+:root {
+  /* Colour */
+  --m-bg: #151310;
+  --m-surface: #24211e;
+  --m-surface-raised: #302b26;
+  --m-accent: #f0b36e;
+  --m-accent-soft: #dca4b3;
+  --m-text: #f5e8d7;
+  --m-text-secondary: #c9b9a8;
+  --m-text-muted: #afa091;
+  --m-border: #65503b;
+  --m-border-strong: #c48b55;
+
+  /* Type */
+  --m-font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+    Georgia, "Liberation Serif", "DejaVu Serif", serif;
+  --m-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --m-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Segoe UI Mono",
+    Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Shape */
+  --m-radius: 2px;
+  --m-shadow-hard: 4px 4px 0 0 var(--m-border-strong);
+  --m-focus-ring: 2px solid var(--m-accent);
+}

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Café Fernweh — local development runner
+# MUSAFIR Café — local development runner
 # Starts the backend (Cloudflare Worker on :8787) and frontend (Vite on :5173).
 
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
-echo "▶ Starting Café Fernweh backend (Ctrl+C to stop both)..."
+echo "▶ Starting MUSAFIR Café backend (Ctrl+C to stop both)..."
 npx wrangler dev --port 8787 --ip 127.0.0.1 &
 BACKEND_PID=$!
 
-echo "▶ Starting Café Fernweh frontend..."
+echo "▶ Starting MUSAFIR Café frontend..."
 npm run dev:client &
 FRONTEND_PID=$!
 
